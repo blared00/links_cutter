@@ -12,7 +12,7 @@ async def check_link(link: str):
     async with aiohttp.ClientSession(timeout=timeout) as session:
         try:
             async with session.head(link) as response:
-                return 'success' if response.status > 400 else f'Response status {response.status}'
+                return 'success' if response.status < 400 else f'Response status {response.status}'
         except TimeoutError:
             return 'I guess problem with page loading'
         except (aiohttp.client_exceptions.InvalidURL,  aiohttp.client_exceptions.ClientConnectorError):
