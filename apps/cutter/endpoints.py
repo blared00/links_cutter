@@ -1,7 +1,10 @@
-from fastapi import HTTPException, status, APIRouter
-from fastapi.responses import JSONResponse
+from decouple import config
+from fastapi import HTTPException, status, APIRouter, Request
+from fastapi.responses import JSONResponse, Response
 
+from . import models
 from .utils import check_link, creating_link, insert_link, find_short_link, remove_link, find_full_link
+
 
 router = APIRouter(
     prefix='/cutter',
@@ -10,7 +13,7 @@ router = APIRouter(
 
 
 @router.get('/cut/')
-async def create_short_link(link: str):
+async def create_short_link(link: str, request: Request) -> models.Link:
     """
     Get cutting link</br></br>
 
@@ -22,46 +25,48 @@ async def create_short_link(link: str):
             detail='Bad link. Can you double check link and send again?'
         )
 
+    referer = config('HTTP_PREFIX') + request.headers.get('host') + '/'
     if exist_link := await find_short_link(link):
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={'new_link': exist_link.short_link}
+        return models.Link(
+                short_link=referer + exist_link.short_link,
+                full_link=link
         )
 
     new_link = await creating_link(link)
     await insert_link(link, new_link)
-    return JSONResponse(
-        status_code=status.HTTP_201_CREATED,
-        content={'new_link': new_link}
+    return models.Link(
+                short_link=referer + new_link,
+                full_link=link
     )
 
 
 @router.get('/full/')
-async def get_full_link(link: str):
+async def get_full_link(link: str, request: Request) -> models.Link:
     """
     Response full link from cutting_link</br></br>
     link: link which need to find full version
     """
-
-    if not (link_obj := await find_full_link(link)):
+    referer = config('HTTP_PREFIX') + request.headers.get('host') + '/'
+    if not (link_obj := await find_full_link(link.replace(referer, ''))):
         raise HTTPException(
             status_code=404,
             detail='Link not found'
         )
 
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={'full_link': link_obj.full_link}
+    return models.Link(
+                short_link=link,
+                full_link=link_obj.full_link
     )
 
 
 @router.delete('/del/')
-async def del_link(link: str):
+async def del_link(link: str, request: Request):
     """
     Delete link</br></br>
     link: link which need to delete
     """
-    if not (link_obj := await find_full_link(link)):
+    referer = config('HTTP_PREFIX') + request.headers.get('host') + '/'
+    if not (link_obj := await find_full_link(link.replace(referer, ''))):
         raise HTTPException(
             status_code=404,
             detail='Link not found'
