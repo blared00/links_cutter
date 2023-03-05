@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  postgresql:
+    image: postgres
+    volumes:
+      - ./postgres/data/db:/var/lib/postgresql/data
+      - ./db_apps:/docker-entrypoint-initdb.d
+      - ./db_apps/pg_hba.conf:/var/lib/postgresql/pg_hba.conf
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER_ROOT}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    command: ["postgres", "-c", "hba_file=/var/lib/postgresql/pg_hba.conf"]
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - pip3 install -r requirements.txt -q && alembic upgrade head && python server.py
+    volumes:
+      - .:/usr/src/app/web
+    depends_on:
+      - postgresql
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 20s
+        max_attempts: 10
+
+    environment:
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER_ROOT}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - HOME_PAGE=${HOME_PAGE}
+      - HTTP_PREFIX=${HTTP_PREFIX}
+      - PORT=${PORT}
+    ports:
+      - 8000:8000
