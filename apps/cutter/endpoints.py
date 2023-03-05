@@ -19,10 +19,12 @@ async def create_short_link(link: str, request: Request) -> models.Link:
 
     link: link which need to cut
     """
-    if not await check_link(link):
+    if 'http' not in link:
+        link = 'https://' + link
+    if (mes := await check_link(link)) != 'success':
         raise HTTPException(
             status_code=400,
-            detail='Bad link. Can you double check link and send again?'
+            detail='Bad link. Can you double check link and send again? ' + mes
         )
 
     referer = config('HTTP_PREFIX') + request.headers.get('host') + '/'

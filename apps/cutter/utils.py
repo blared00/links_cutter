@@ -1,12 +1,22 @@
 import random
 
+import aiohttp
+from decouple import config
+
 from db_apps.cutter import schemas
 from db_apps.cutter.async_crud import create_link, get_short_link_by_full, get_full_link_by_short, delete_link
 
 
-
 async def check_link(link: str):
-    return True
+    timeout = aiohttp.ClientTimeout(total=int(config('TIMEOUT_REQUESTS', 5)))
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        try:
+            async with session.head(link) as response:
+                return 'success' if response.status > 400 else f'Response status {response.status}'
+        except TimeoutError:
+            return 'I guess problem with page loading'
+        except (aiohttp.client_exceptions.InvalidURL,  aiohttp.client_exceptions.ClientConnectorError):
+            return 'I guess your URL is invalid'
 
 
 async def creating_link(link: str):
